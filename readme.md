@@ -3,4 +3,4 @@
 ## Prerequisites
 
 * [Ganache](https://trufflesuite.com/ganache/)
-* [`truffle`](https://github.com/trufflesuite/truffle)
+* [`truffle`](https://github.com/trufflesuite/truffle)j
