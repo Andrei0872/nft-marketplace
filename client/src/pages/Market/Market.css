@@ -1,0 +1,15 @@
+.market__title {
+  padding-inline: 2rem;
+}
+
+.market__token-list-container {
+  padding-inline: 3rem;
+  padding-block-start: 1rem;
+}
+
+.market__token-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  column-gap: 3rem;
+  row-gap: 1rem;
+}

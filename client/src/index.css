@@ -9,7 +9,8 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
@@ -19,4 +20,11 @@ html, body {
 
 ul {
   list-style: none;
+}
+
+button {
+  padding: 3px 7px;
+  line-height: 1;
+  cursor: pointer;
+  border: none;
 }
