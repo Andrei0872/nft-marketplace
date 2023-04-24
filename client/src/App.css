@@ -1,1 +1,25 @@
+#container {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-row-gap: 1rem;
+}
 
+#header {
+  display: flex;
+  justify-content: space-between;
+  padding-inline: calc(6vw + 1rem);
+  border-bottom: 2px solid var(--cl-primary);
+}
+
+.navbar__links {
+  align-items: center;
+  display: flex;
+  column-gap: 2rem;
+  font-size: 1.2rem;
+  height: 100%;
+}
+
+.header__title {
+  padding-block: .3rem;
+}
