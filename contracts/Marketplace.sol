@@ -4,9 +4,8 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 // Contract module that helps prevent reentrant calls to a function.
-// Inheriting from ReentrancyGuard will make the nonReentrant modifier available, 
+// Inheriting from ReentrancyGuard will make the nonReentrant modifier available,
 // which can be applied to functions to make sure there are no nested (reentrant) calls to them:
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
@@ -20,16 +19,26 @@ error PriceMustBeAboveZero();
 error OwnerTheSameWithBuyer(); // Error thrown for isNotOwner modifier
 
 contract Marketplace is ReentrancyGuard {
+    address private _owner;
+
+    constructor() {
+        _owner = msg.sender;
+    }
 
     struct Listing {
         uint256 price;
         address seller;
     }
 
+    struct Token {
+        address nftAddress;
+        uint256 tokenId;
+    }
+
     // The indexed parameters for logged events will allow you to search for these events using the indexed parameters as filters.
     // The indexed keyword is only relevant to logged events.
     // (source: https://ethereum.stackexchange.com/questions/8658/what-does-the-indexed-keyword-do)
-    event ItemListed( 
+    event ItemListed(
         address indexed seller,
         address indexed nftAddress,
         uint256 indexed tokenId,
@@ -49,26 +58,25 @@ contract Marketplace is ReentrancyGuard {
         uint256 price
     );
 
+    // { [nftContractAddress]: { [tokenId]: Listing } }
     mapping(address => mapping(uint256 => Listing)) private s_listings;
     mapping(address => uint256) private s_proceeds;
-
+    // { [ownerAddress]: { [nftAddress]: { [tokenId]: isListed } } }
+    mapping(address => mapping(address => mapping(uint256 => bool)))
+        private s_usersTokens;
 
     // We will use modifiers to automatically check some conditions prior to executing the functions:
 
     // This modifier verifies that an NFT has not already been listed when its listing was desired:
-    modifier notListed(
-        address nftAddress,
-        uint256 tokenId
-    ) {
+    modifier notListed(address nftAddress, uint256 tokenId) {
         Listing memory listing = s_listings[nftAddress][tokenId];
         if (listing.price > 0) {
             revert AlreadyListed(nftAddress, tokenId);
         }
-        _; // This operator tells when the function can be executed 
-          // (In this case the function will be executed after the above check.
-         // If the check is not successful, the execution is interrupted and an error is thrown)
+        _; // This operator tells when the function can be executed
+        // (In this case the function will be executed after the above check.
+        // If the check is not successful, the execution is interrupted and an error is thrown)
     }
-
 
     // This modifier verifies that an NFT is already listed when the list price is modified:
     modifier isListed(address nftAddress, uint256 tokenId) {
@@ -135,6 +143,8 @@ contract Marketplace is ReentrancyGuard {
         }
         s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
+
+        s_usersTokens[msg.sender][nftAddress][tokenId] = true;
     }
 
     /*
@@ -143,7 +153,10 @@ contract Marketplace is ReentrancyGuard {
       - nftAddress: Address of NFT contract
       - tokenId: Token ID of NFT
      */
-    function cancelListing(address nftAddress, uint256 tokenId)
+    function cancelListing(
+        address nftAddress,
+        uint256 tokenId
+    )
         external
         isOwner(nftAddress, tokenId, msg.sender)
         isListed(nftAddress, tokenId)
@@ -160,7 +173,10 @@ contract Marketplace is ReentrancyGuard {
       - nftAddress: Address of NFT contract
       - tokenId: Token ID of NFT
      */
-    function buyItem(address nftAddress, uint256 tokenId)
+    function buyItem(
+        address nftAddress,
+        uint256 tokenId
+    )
         external
         payable
         isListed(nftAddress, tokenId)
@@ -175,8 +191,18 @@ contract Marketplace is ReentrancyGuard {
         // Could just send the money...
         // https://fravoll.github.io/solidity-patterns/pull_over_push.html
         delete (s_listings[nftAddress][tokenId]);
-        IERC721(nftAddress).safeTransferFrom(listedItem.seller, msg.sender, tokenId);
+        IERC721(nftAddress).safeTransferFrom(
+            listedItem.seller,
+            msg.sender,
+            tokenId
+        );
         emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+
+        IERC721 nft = IERC721(nftAddress);
+        address owner = nft.ownerOf(tokenId);
+        delete (s_usersTokens[owner][nftAddress][tokenId]);
+
+        s_usersTokens[msg.sender][nftAddress][tokenId] = false;
     }
 
     /*
@@ -217,18 +243,39 @@ contract Marketplace is ReentrancyGuard {
         require(success, "Transfer failed!");
     }
 
+    // Getter Functions:
 
-    // Getter Functions: 
-
-    function getListing(address nftAddress, uint256 tokenId)
-        external
-        view
-        returns (Listing memory)
-    {
+    function getListing(
+        address nftAddress,
+        uint256 tokenId
+    ) external view returns (Listing memory) {
         return s_listings[nftAddress][tokenId];
     }
 
     function getProceeds(address seller) external view returns (uint256) {
         return s_proceeds[seller];
+    }
+
+    // TODO: create custom struct and return an array of it.
+    // It could contain: nftAddr, tokenId, price, imageURL, ownerId.
+    // function getAllListings() external view returns () {
+        // return s_listings;
+    // }
+
+    // TODO: create custom structure.
+    // It could contain: nftAddr, tokenId, imageURL, isListed(use `s_listings` for this).
+    // function getOwnerTokens(address ownerAddr) {
+
+    // }
+
+    function insertNFT(address nftAddress, uint256 tokenId) public {
+        require(
+            msg.sender == _owner,
+            "Only the marketplace's owner can add new NFTs."
+        );
+        // console.log(msg.sender);
+        // console.log(address(this));
+
+        s_usersTokens[msg.sender][nftAddress][tokenId] = true;
     }
 }

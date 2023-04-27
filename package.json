@@ -12,5 +12,8 @@
   "devDependencies": {
     "truffle-typings": "^1.0.8",
     "typechain": "^8.1.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.3"
   }
 }
