@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 // which can be applied to functions to make sure there are no nested (reentrant) calls to them:
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
 error InsufficientFunds(address nftAddress, uint256 tokenId, uint256 price);
 error NotListed(address nftAddress, uint256 tokenId);
 error AlreadyListed(address nftAddress, uint256 tokenId);
@@ -33,6 +35,13 @@ contract Marketplace is ReentrancyGuard {
     struct Token {
         address nftAddress;
         uint256 tokenId;
+    }
+
+    struct TokenOwner {
+        address nftAddres;
+        uint256 tokenId;
+        string imageURL;
+        bool isListed;
     }
 
     // The indexed parameters for logged events will allow you to search for these events using the indexed parameters as filters.
@@ -62,7 +71,8 @@ contract Marketplace is ReentrancyGuard {
     mapping(address => mapping(uint256 => Listing)) private s_listings;
     mapping(address => uint256) private s_proceeds;
     // { [ownerAddress]: { [nftAddress]: { [tokenId]: isListed } } }
-    mapping(address => mapping(address => mapping(uint256 => bool)))
+    // mapping(address => mapping(address => mapping(uint256 => bool)))
+    mapping(address => TokenOwner[])
         private s_usersTokens;
 
     // We will use modifiers to automatically check some conditions prior to executing the functions:
@@ -144,7 +154,9 @@ contract Marketplace is ReentrancyGuard {
         s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
 
-        s_usersTokens[msg.sender][nftAddress][tokenId] = true;
+
+        // TODO: modify `isLister`.
+        // s_usersTokens[msg.sender][nftAddress][tokenId] = true;
     }
 
     /*
@@ -198,11 +210,12 @@ contract Marketplace is ReentrancyGuard {
         );
         emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
 
-        IERC721 nft = IERC721(nftAddress);
-        address owner = nft.ownerOf(tokenId);
-        delete (s_usersTokens[owner][nftAddress][tokenId]);
-
-        s_usersTokens[msg.sender][nftAddress][tokenId] = false;
+        // TODO: delete token from owner's token(identify by nftAddr & tokenId).
+        // TODO: add token to new owner list.
+        // IERC721 nft = IERC721(nftAddress);
+        // address owner = nft.ownerOf(tokenId);
+        // delete (s_usersTokens[owner][nftAddress][tokenId]);
+        // s_usersTokens[msg.sender][nftAddress][tokenId] = false;
     }
 
     /*
@@ -263,19 +276,19 @@ contract Marketplace is ReentrancyGuard {
     // }
 
     // TODO: create custom structure.
-    // It could contain: nftAddr, tokenId, imageURL, isListed(use `s_listings` for this).
-    // function getOwnerTokens(address ownerAddr) {
+    // It could contain: ftAddr, tokenId, imageURL, isListed(use `s_listings` for this).
+    function getOwnerTokens(address ownerAddr) external view returns (TokenOwner[] memory) {
+        return s_usersTokens[ownerAddr];
+    }
 
-    // }
-
+    // Inserts a new NFT for an NFT marketplace owner.
     function insertNFT(address nftAddress, uint256 tokenId) public {
         require(
             msg.sender == _owner,
             "Only the marketplace's owner can add new NFTs."
         );
-        // console.log(msg.sender);
-        // console.log(address(this));
 
-        s_usersTokens[msg.sender][nftAddress][tokenId] = true;
+        ERC721 nft = ERC721(nftAddress);
+        s_usersTokens[msg.sender].push(TokenOwner(nftAddress, tokenId, nft.tokenURI(tokenId), false));
     }
 }

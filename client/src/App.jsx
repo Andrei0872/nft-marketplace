@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { web3, marketplaceContract, bearContract } from './config/web3';
+import { web3, marketplaceContract, bearContract, squirrelContract } from './config/web3';
 import { Outlet, Link } from 'react-router-dom';
 
 function App() {
@@ -14,7 +14,13 @@ function App() {
       // bearContract.methods.mintNft().send({
       //   from: '0xFf02c74586E2a627064d086364413280476b87eC',
       //   gas: 6721974,
-      // });
+      // })
+
+      // squirrelContract.methods.mintNft().send({
+      //   from: '0xFf02c74586E2a627064d086364413280476b87eC',
+      //   gas: 6721974,
+      // })
+      // .then(r => console.log(r))
 
       // setTimeout(() => {
       //   bearContract.getPastEvents('BearMinted')
@@ -23,13 +29,22 @@ function App() {
       //     })
       // }, 100);
 
-      marketplaceContract.methods
-        .insertNFT("0xDb3601Ddc98b208e0Bad73e5F9C51D353299A26A", 6)
-        .send({
-          from: '0xFf02c74586E2a627064d086364413280476b87eC',
-          // from: '0xDd8958E023E63549c7f635de372d977E5bb10A11',
-          gas: 6721974,
-        })
+      // marketplaceContract.methods
+      //   // .insertNFT("0xDb3601Ddc98b208e0Bad73e5F9C51D353299A26A", 6)
+      //   .insertNFT("0x2c084d4429770733893a208d8970774926BE71f2", 2)
+      //   .send({
+      //     from: '0xFf02c74586E2a627064d086364413280476b87eC',
+      //     // from: '0xDd8958E023E63549c7f635de372d977E5bb10A11',
+      //     gas: 6721974,
+      //   })
+      //   .then(r => {
+      //     console.log(r);
+      //   })
+
+      // marketplaceContract.methods
+      //   .getOwnerTokens("0xFf02c74586E2a627064d086364413280476b87eC")
+      //   .call()
+      //   .then(r => console.log(r))
 
 
       // Promise.resolve()
