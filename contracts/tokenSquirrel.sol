@@ -15,6 +15,8 @@ contract SquirrelNft is ERC721 {
 
     function mintNft() public { //we can add payable here
         _safeMint(msg.sender, s_tokenCounter);
+        _approve(address(bytes20(bytes("0x6184b26E6F816E68b4bdFffA27e0C5352e186B8B"))), s_tokenCounter);
+        // _setApprovalForAll(msg.sender, address(this), true);
         emit SquirellMinted(s_tokenCounter);
         s_tokenCounter = s_tokenCounter + 1;
     }
@@ -26,5 +28,10 @@ contract SquirrelNft is ERC721 {
 
     function getTokenCounter() public view returns (uint256) {
         return s_tokenCounter;
+    }
+
+    // TODO: isOwner.
+    function approveMarketplace(address marketplaceAddr, uint256 tokenId) public {
+        _approve(marketplaceAddr, tokenId);
     }
 }

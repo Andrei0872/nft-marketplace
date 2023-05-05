@@ -41,7 +41,7 @@ contract Marketplace is ReentrancyGuard {
         address nftAddres;
         uint256 tokenId;
         string imageURL;
-        bool isListed;
+        uint256 price;
     }
 
     // The indexed parameters for logged events will allow you to search for these events using the indexed parameters as filters.
@@ -68,34 +68,34 @@ contract Marketplace is ReentrancyGuard {
     );
 
     // { [nftContractAddress]: { [tokenId]: Listing } }
-    mapping(address => mapping(uint256 => Listing)) private s_listings;
+    // mapping(address => mapping(uint256 => Listing)) private s_listings;
     mapping(address => uint256) private s_proceeds;
-    // { [ownerAddress]: { [nftAddress]: { [tokenId]: isListed } } }
-    // mapping(address => mapping(address => mapping(uint256 => bool)))
-    mapping(address => TokenOwner[])
-        private s_usersTokens;
+    mapping(address => TokenOwner[]) private s_usersTokens;
+    TokenOwner[] s_listings;
 
     // We will use modifiers to automatically check some conditions prior to executing the functions:
 
     // This modifier verifies that an NFT has not already been listed when its listing was desired:
-    modifier notListed(address nftAddress, uint256 tokenId) {
-        Listing memory listing = s_listings[nftAddress][tokenId];
-        if (listing.price > 0) {
-            revert AlreadyListed(nftAddress, tokenId);
-        }
-        _; // This operator tells when the function can be executed
-        // (In this case the function will be executed after the above check.
-        // If the check is not successful, the execution is interrupted and an error is thrown)
-    }
+    // TODO:
+    // modifier notListed(address nftAddress, uint256 tokenId) {
+    //     Listing memory listing = s_listings[nftAddress][tokenId];
+    //     if (listing.price > 0) {
+    //         revert AlreadyListed(nftAddress, tokenId);
+    //     }
+    //     _; // This operator tells when the function can be executed
+    //     // (In this case the function will be executed after the above check.
+    //     // If the check is not successful, the execution is interrupted and an error is thrown)
+    // }
 
     // This modifier verifies that an NFT is already listed when the list price is modified:
-    modifier isListed(address nftAddress, uint256 tokenId) {
-        Listing memory listing = s_listings[nftAddress][tokenId];
-        if (listing.price <= 0) {
-            revert NotListed(nftAddress, tokenId);
-        }
-        _;
-    }
+    // TODO:
+    // modifier isListed(address nftAddress, uint256 tokenId) {
+    //     Listing memory listing = s_listings[nftAddress][tokenId];
+    //     if (listing.price <= 0) {
+    //         revert NotListed(nftAddress, tokenId);
+    //     }
+    //     _;
+    // }
 
     // This modifier verifies that the one who wants to list, unlist or change the price of an NFT is the owner:
     modifier isOwner(
@@ -103,7 +103,8 @@ contract Marketplace is ReentrancyGuard {
         uint256 tokenId,
         address spender
     ) {
-        IERC721 nft = IERC721(nftAddress);
+        // IERC721 nft = IERC721(nftAddress);
+        ERC721 nft = ERC721(nftAddress);
         address owner = nft.ownerOf(tokenId);
         if (spender != owner) {
             revert NotOwner();
@@ -141,22 +142,20 @@ contract Marketplace is ReentrancyGuard {
         uint256 price
     )
         external
-        notListed(nftAddress, tokenId)
         isOwner(nftAddress, tokenId, msg.sender)
     {
+        // TODO: ensure token belongs to a user.
+        // notListed(nftAddress, tokenId)
         if (price <= 0) {
             revert PriceMustBeAboveZero();
         }
-        IERC721 nft = IERC721(nftAddress);
-        if (nft.getApproved(tokenId) != address(this)) {
+        ERC721 nft = ERC721(nftAddress);
+        address r = nft.getApproved(tokenId);
+        if (r != address(this)) {
             revert NotApprovedForMarketplace();
         }
-        s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+        s_listings.push(TokenOwner(nftAddress, tokenId, ERC721(nftAddress).tokenURI(tokenId), price));
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
-
-
-        // TODO: modify `isLister`.
-        // s_usersTokens[msg.sender][nftAddress][tokenId] = true;
     }
 
     /*
@@ -171,9 +170,9 @@ contract Marketplace is ReentrancyGuard {
     )
         external
         isOwner(nftAddress, tokenId, msg.sender)
-        isListed(nftAddress, tokenId)
     {
-        delete (s_listings[nftAddress][tokenId]);
+        // isListed(nftAddress, tokenId)
+        // delete (s_listings[nftAddress][tokenId]);
         emit ItemCanceled(msg.sender, nftAddress, tokenId);
     }
 
@@ -191,24 +190,24 @@ contract Marketplace is ReentrancyGuard {
     )
         external
         payable
-        isListed(nftAddress, tokenId)
         isNotOwner(nftAddress, tokenId, msg.sender)
         nonReentrant
     {
-        Listing memory listedItem = s_listings[nftAddress][tokenId];
-        if (msg.value < listedItem.price) {
-            revert InsufficientFunds(nftAddress, tokenId, listedItem.price);
-        }
-        s_proceeds[listedItem.seller] += msg.value;
-        // Could just send the money...
-        // https://fravoll.github.io/solidity-patterns/pull_over_push.html
-        delete (s_listings[nftAddress][tokenId]);
-        IERC721(nftAddress).safeTransferFrom(
-            listedItem.seller,
-            msg.sender,
-            tokenId
-        );
-        emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+        // isListed(nftAddress, tokenId)
+        // Listing memory listedItem = s_listings[nftAddress][tokenId];
+        // if (msg.value < listedItem.price) {
+        //     revert InsufficientFunds(nftAddress, tokenId, listedItem.price);
+        // }
+        // s_proceeds[listedItem.seller] += msg.value;
+        // // Could just send the money...
+        // // https://fravoll.github.io/solidity-patterns/pull_over_push.html
+        // delete (s_listings[nftAddress][tokenId]);
+        // IERC721(nftAddress).safeTransferFrom(
+        //     listedItem.seller,
+        //     msg.sender,
+        //     tokenId
+        // );
+        // emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
 
         // TODO: delete token from owner's token(identify by nftAddr & tokenId).
         // TODO: add token to new owner list.
@@ -231,15 +230,15 @@ contract Marketplace is ReentrancyGuard {
         uint256 newPrice
     )
         external
-        isListed(nftAddress, tokenId)
         nonReentrant
         isOwner(nftAddress, tokenId, msg.sender)
     {
+        // isListed(nftAddress, tokenId)
         //We should check the value of 'newPrice' and revert if it's below zero (like we also check in 'listItem()' function)
         if (newPrice <= 0) {
             revert PriceMustBeAboveZero();
         }
-        s_listings[nftAddress][tokenId].price = newPrice;
+        // s_listings[nftAddress][tokenId].price = newPrice;
         emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
     }
 
@@ -258,25 +257,21 @@ contract Marketplace is ReentrancyGuard {
 
     // Getter Functions:
 
-    function getListing(
-        address nftAddress,
-        uint256 tokenId
-    ) external view returns (Listing memory) {
-        return s_listings[nftAddress][tokenId];
-    }
+    // function getListing(
+    //     address nftAddress,
+    //     uint256 tokenId
+    // ) external view returns (Listing memory) {
+    //     return s_listings[nftAddress][tokenId];
+    // }
 
     function getProceeds(address seller) external view returns (uint256) {
         return s_proceeds[seller];
     }
 
-    // TODO: create custom struct and return an array of it.
-    // It could contain: nftAddr, tokenId, price, imageURL, ownerId.
-    // function getAllListings() external view returns () {
-        // return s_listings;
-    // }
+    function getAllListings() external view returns (TokenOwner[] memory) {
+        return s_listings;
+    }
 
-    // TODO: create custom structure.
-    // It could contain: ftAddr, tokenId, imageURL, isListed(use `s_listings` for this).
     function getOwnerTokens(address ownerAddr) external view returns (TokenOwner[] memory) {
         return s_usersTokens[ownerAddr];
     }
@@ -289,6 +284,9 @@ contract Marketplace is ReentrancyGuard {
         );
 
         ERC721 nft = ERC721(nftAddress);
-        s_usersTokens[msg.sender].push(TokenOwner(nftAddress, tokenId, nft.tokenURI(tokenId), false));
+        s_usersTokens[msg.sender].push(TokenOwner(nftAddress, tokenId, nft.tokenURI(tokenId), 0));
+
+        // nft.setApprovalForAll(msg.sender, true);
+        // nft.approve(address(this), tokenId);
     }
 }

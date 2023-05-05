@@ -3,7 +3,7 @@ import configuration from '../../../build/contracts/Marketplace.json';
 import bearConfig from '../../../build/contracts/BearNft.json';
 import squirrelConfig from '../../../build/contracts/SquirrelNft.json';
 
-const CONTRACT_ADDRESS = configuration.networks['5777'].address;
+export const CONTRACT_ADDRESS = configuration.networks['5777'].address;
 const CONTRACT_ABI = configuration.abi;
 
 export const web3 = new Web3('http://127.0.0.1:7545');

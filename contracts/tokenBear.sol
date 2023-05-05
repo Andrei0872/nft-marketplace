@@ -15,6 +15,7 @@ contract BearNft is ERC721 {
 
     function mintNft() public { //we can add payable here
         _safeMint(msg.sender, s_tokenCounter);
+        // _setApprovalForAll(msg.sender, address(this), true);
         emit BearMinted(s_tokenCounter);
         s_tokenCounter = s_tokenCounter + 1;
     }

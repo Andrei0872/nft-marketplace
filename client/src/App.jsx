@@ -2,25 +2,34 @@ import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { web3, marketplaceContract, bearContract, squirrelContract } from './config/web3';
+import { web3, marketplaceContract, bearContract, squirrelContract, CONTRACT_ADDRESS } from './config/web3';
 import { Outlet, Link } from 'react-router-dom';
+
+const SQUIRREL_CONTRACT_ADDR = '0x6B2aA448384C719281E3519258839Ecc75Bc607e';
+const FIRST_USER = '0xFf02c74586E2a627064d086364413280476b87eC';
+const MARKETPLACE_OWNER_ADDR = FIRST_USER;
 
 function App() {
   useEffect(() => {
     const fetchFn = async () => {
       //  web3.eth.Contract() 
-      console.log(marketplaceContract.methods);
-      console.log(bearContract.methods);
+      // console.log(marketplaceContract.methods);
+      // console.log(bearContract.methods);
       // bearContract.methods.mintNft().send({
       //   from: '0xFf02c74586E2a627064d086364413280476b87eC',
       //   gas: 6721974,
       // })
 
-      // squirrelContract.methods.mintNft().send({
-      //   from: '0xFf02c74586E2a627064d086364413280476b87eC',
-      //   gas: 6721974,
-      // })
-      // .then(r => console.log(r))
+      squirrelContract.methods.mintNft().send({
+        from: MARKETPLACE_OWNER_ADDR,
+        gas: 6721974,
+      })
+      .then(r => console.log(r))
+
+      // squirrelContract.methods
+      //   .approveMarketplace(CONTRACT_ADDRESS, 1)
+      //   .call()
+      //   .then(console.log)
 
       // setTimeout(() => {
       //   bearContract.getPastEvents('BearMinted')
@@ -29,12 +38,13 @@ function App() {
       //     })
       // }, 100);
 
+      
+      
       // marketplaceContract.methods
       //   // .insertNFT("0xDb3601Ddc98b208e0Bad73e5F9C51D353299A26A", 6)
-      //   .insertNFT("0x2c084d4429770733893a208d8970774926BE71f2", 2)
+      //   .insertNFT(SQUIRREL_CONTRACT_ADDR, 1)
       //   .send({
-      //     from: '0xFf02c74586E2a627064d086364413280476b87eC',
-      //     // from: '0xDd8958E023E63549c7f635de372d977E5bb10A11',
+      //     from: MARKETPLACE_OWNER_ADDR,
       //     gas: 6721974,
       //   })
       //   .then(r => {
@@ -42,7 +52,25 @@ function App() {
       //   })
 
       // marketplaceContract.methods
-      //   .getOwnerTokens("0xFf02c74586E2a627064d086364413280476b87eC")
+      //   .getOwnerTokens(MARKETPLACE_OWNER_ADDR)
+      //   .call()
+      //   .then(r => console.log(r))
+
+        //* LISTINGS
+
+
+        // marketplaceContract.methods
+        //   .listItem(
+        //     SQUIRREL_CONTRACT_ADDR,
+        //     1,
+        //     10
+        //   ).send({
+        //     from: MARKETPLACE_OWNER_ADDR,
+        //   });
+
+
+      // marketplaceContract.methods
+      //   .getAllListings()
       //   .call()
       //   .then(r => console.log(r))
 
