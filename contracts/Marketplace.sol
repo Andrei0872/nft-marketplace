@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
+//import "./Ownable.sol";
+
 error InsufficientFunds(address nftAddress, uint256 tokenId, uint256 price);
 error NotListed(address nftAddress, uint256 tokenId);
 error AlreadyListed(address nftAddress, uint256 tokenId);
@@ -23,6 +25,7 @@ error OwnerTheSameWithBuyer(); // Error thrown for isNotOwner modifier
 contract Marketplace is ReentrancyGuard {
     address private _owner;
 
+    // the owner of this contract is the person(address) who is deploying the contract
     constructor() {
         _owner = msg.sender;
     }
@@ -211,6 +214,9 @@ contract Marketplace is ReentrancyGuard {
 
         // TODO: delete token from owner's token(identify by nftAddr & tokenId).
         // TODO: add token to new owner list.
+
+        // TODO: new owner needs to give approval to the Marketplace after buying the NFT.
+        
         // IERC721 nft = IERC721(nftAddress);
         // address owner = nft.ownerOf(tokenId);
         // delete (s_usersTokens[owner][nftAddress][tokenId]);
@@ -264,6 +270,11 @@ contract Marketplace is ReentrancyGuard {
     //     return s_listings[nftAddress][tokenId];
     // }
 
+    // that function returns the deployer(owner) of the contract:
+    function getOwner() public view returns(address){
+        return _owner;
+    }
+
     function getProceeds(address seller) external view returns (uint256) {
         return s_proceeds[seller];
     }
@@ -276,12 +287,15 @@ contract Marketplace is ReentrancyGuard {
         return s_usersTokens[ownerAddr];
     }
 
-    // Inserts a new NFT for an NFT marketplace owner.
+    // Inserts a new NFT by the NFT marketplace owner.
     function insertNFT(address nftAddress, uint256 tokenId) public {
         require(
             msg.sender == _owner,
             "Only the marketplace's owner can add new NFTs."
         );
+
+        // here(in this function) you should mint the NFT (the NFT (i.e. tokenId) should not be transmitted as a parameter):
+        //nft = nftAddress.mintNft();
 
         ERC721 nft = ERC721(nftAddress);
         s_usersTokens[msg.sender].push(TokenOwner(nftAddress, tokenId, nft.tokenURI(tokenId), 0));

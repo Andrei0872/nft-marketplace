@@ -9,6 +9,10 @@ const SQUIRREL_CONTRACT_ADDR = '0x6B2aA448384C719281E3519258839Ecc75Bc607e';
 const FIRST_USER = '0xFf02c74586E2a627064d086364413280476b87eC';
 const MARKETPLACE_OWNER_ADDR = FIRST_USER;
 
+
+// here in App.jsx we need to take care of how we mint NFTs(we need to pass the correct addresses to functions)...
+
+
 function App() {
   useEffect(() => {
     const fetchFn = async () => {
@@ -20,6 +24,7 @@ function App() {
       //   gas: 6721974,
       // })
 
+      // this function is no longer needed here (we mint NFTs in insertNFT function from Marketplace.sol)
       squirrelContract.methods.mintNft().send({
         from: MARKETPLACE_OWNER_ADDR,
         gas: 6721974,
