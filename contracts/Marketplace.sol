@@ -17,6 +17,7 @@ error InsufficientFunds(address nftAddress, uint256 tokenId, uint256 price);
 error NotListed(address nftAddress, uint256 tokenId);
 error AlreadyListed(address nftAddress, uint256 tokenId);
 error NoProceeds();
+error TokenNotFound();
 error NotOwner();
 error NotApprovedForMarketplace();
 error PriceMustBeAboveZero();
@@ -41,10 +42,11 @@ contract Marketplace is ReentrancyGuard {
     }
 
     struct TokenOwner {
-        address nftAddres;
+        address nftAddress;
         uint256 tokenId;
         string imageURL;
         uint256 price;
+        address seller;
     }
 
     // The indexed parameters for logged events will allow you to search for these events using the indexed parameters as filters.
@@ -70,6 +72,10 @@ contract Marketplace is ReentrancyGuard {
         uint256 price
     );
 
+    event TokenFound(
+        TokenOwner tokenOwner
+    );
+
     // { [nftContractAddress]: { [tokenId]: Listing } }
     // mapping(address => mapping(uint256 => Listing)) private s_listings;
     mapping(address => uint256) private s_proceeds;
@@ -79,7 +85,6 @@ contract Marketplace is ReentrancyGuard {
     // We will use modifiers to automatically check some conditions prior to executing the functions:
 
     // This modifier verifies that an NFT has not already been listed when its listing was desired:
-    // TODO:
     // modifier notListed(address nftAddress, uint256 tokenId) {
     //     Listing memory listing = s_listings[nftAddress][tokenId];
     //     if (listing.price > 0) {
@@ -91,7 +96,6 @@ contract Marketplace is ReentrancyGuard {
     // }
 
     // This modifier verifies that an NFT is already listed when the list price is modified:
-    // TODO:
     // modifier isListed(address nftAddress, uint256 tokenId) {
     //     Listing memory listing = s_listings[nftAddress][tokenId];
     //     if (listing.price <= 0) {
@@ -143,11 +147,7 @@ contract Marketplace is ReentrancyGuard {
         address nftAddress,
         uint256 tokenId,
         uint256 price
-    )
-        external
-        isOwner(nftAddress, tokenId, msg.sender)
-    {
-        // TODO: ensure token belongs to a user.
+    ) external isOwner(nftAddress, tokenId, msg.sender) {
         // notListed(nftAddress, tokenId)
         if (price <= 0) {
             revert PriceMustBeAboveZero();
@@ -157,7 +157,32 @@ contract Marketplace is ReentrancyGuard {
         if (r != address(this)) {
             revert NotApprovedForMarketplace();
         }
-        s_listings.push(TokenOwner(nftAddress, tokenId, ERC721(nftAddress).tokenURI(tokenId), price));
+        s_listings.push(
+            TokenOwner(
+                nftAddress,
+                tokenId,
+                ERC721(nftAddress).tokenURI(tokenId),
+                price,
+                msg.sender
+            )
+        );
+
+        bool isTokenFound = false;
+        for (uint i = 0; i < s_usersTokens[msg.sender].length; i++) {
+            TokenOwner memory crtToken = s_usersTokens[msg.sender][i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                crtToken.price = price;
+                isTokenFound = true;
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert TokenNotFound();
+        }
+
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
     }
 
@@ -170,12 +195,47 @@ contract Marketplace is ReentrancyGuard {
     function cancelListing(
         address nftAddress,
         uint256 tokenId
-    )
-        external
-        isOwner(nftAddress, tokenId, msg.sender)
-    {
-        // isListed(nftAddress, tokenId)
-        // delete (s_listings[nftAddress][tokenId]);
+    ) external isOwner(nftAddress, tokenId, msg.sender) {
+        // Deleting first from listing list.
+        bool isTokenFound = false;
+        address userAddr;
+        for (uint i = 0; i < s_listings.length; i++) {
+            TokenOwner memory crtToken = s_listings[i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                s_listings[i] = s_listings[s_listings.length - 1];
+                s_listings.pop();
+
+                isTokenFound = true;
+                userAddr = crtToken.seller;
+
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert NotListed(nftAddress, tokenId);
+        }
+
+        // Unlisting the token from the user's token list.
+        isTokenFound = false;
+        for (uint i = 0; i < s_usersTokens[userAddr].length; i++) {
+            TokenOwner memory crtToken = s_usersTokens[userAddr][i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                // Unlisting by setting the price back to `0`.
+                crtToken.price = 0;
+                isTokenFound = true;
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert TokenNotFound();
+        }
+
         emit ItemCanceled(msg.sender, nftAddress, tokenId);
     }
 
@@ -196,31 +256,76 @@ contract Marketplace is ReentrancyGuard {
         isNotOwner(nftAddress, tokenId, msg.sender)
         nonReentrant
     {
-        // isListed(nftAddress, tokenId)
-        // Listing memory listedItem = s_listings[nftAddress][tokenId];
-        // if (msg.value < listedItem.price) {
-        //     revert InsufficientFunds(nftAddress, tokenId, listedItem.price);
-        // }
-        // s_proceeds[listedItem.seller] += msg.value;
-        // // Could just send the money...
-        // // https://fravoll.github.io/solidity-patterns/pull_over_push.html
-        // delete (s_listings[nftAddress][tokenId]);
-        // IERC721(nftAddress).safeTransferFrom(
-        //     listedItem.seller,
-        //     msg.sender,
-        //     tokenId
-        // );
-        // emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+        TokenOwner memory tokenToBuy;
+        uint prevUserTokenIdx;
+        bool isTokenFound = false;
+        for (uint i = 0; i < s_listings.length; i++) {
+            TokenOwner memory crtToken = s_listings[i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                tokenToBuy = crtToken;
+                isTokenFound = true;
+                prevUserTokenIdx = i;
+                break;
+            }
+        }
 
-        // TODO: delete token from owner's token(identify by nftAddr & tokenId).
-        // TODO: add token to new owner list.
+        if (!isTokenFound) {
+            revert NotListed(nftAddress, tokenId);
+        }
 
-        // TODO: new owner needs to give approval to the Marketplace after buying the NFT.
-        
-        // IERC721 nft = IERC721(nftAddress);
-        // address owner = nft.ownerOf(tokenId);
-        // delete (s_usersTokens[owner][nftAddress][tokenId]);
-        // s_usersTokens[msg.sender][nftAddress][tokenId] = false;
+        if (msg.value < tokenToBuy.price) {
+            revert InsufficientFunds(nftAddress, tokenId, tokenToBuy.price);
+        }
+
+        s_proceeds[tokenToBuy.seller] += msg.value;
+
+        IERC721(nftAddress).safeTransferFrom(
+            tokenToBuy.seller,
+            msg.sender,
+            tokenId
+        );
+        emit ItemBought(msg.sender, nftAddress, tokenId, tokenToBuy.price);
+
+        payable(tokenToBuy.seller).transfer(tokenToBuy.price);
+
+        // Deleting the sold token from its previous owner.
+        isTokenFound = false;
+        for (uint i = 0; i < s_usersTokens[tokenToBuy.seller].length; i++) {
+            TokenOwner memory crtToken = s_usersTokens[tokenToBuy.seller][i];
+            if (
+                crtToken.nftAddress == tokenToBuy.nftAddress &&
+                crtToken.tokenId == tokenToBuy.tokenId
+            ) {
+                s_usersTokens[tokenToBuy.seller][i] = s_usersTokens[
+                    tokenToBuy.seller
+                ][s_usersTokens[tokenToBuy.seller].length - 1];
+                s_usersTokens[tokenToBuy.seller].pop();
+                isTokenFound = true;
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert TokenNotFound();
+        }
+
+        // Adding the bought token to the new owner.
+        tokenToBuy.price = 0;
+        tokenToBuy.seller = msg.sender;
+        s_usersTokens[msg.sender].push(tokenToBuy);
+
+        for (uint i = 0; i < s_listings.length; i++) {
+            TokenOwner memory crtToken = s_listings[i];
+            if (
+                crtToken.nftAddress == tokenToBuy.nftAddress &&
+                crtToken.tokenId == tokenToBuy.tokenId
+            ) {
+                s_listings[i] = s_listings[s_listings.length - 1];
+                s_listings.pop();
+            }
+        }
     }
 
     /*
@@ -234,17 +339,49 @@ contract Marketplace is ReentrancyGuard {
         address nftAddress,
         uint256 tokenId,
         uint256 newPrice
-    )
-        external
-        nonReentrant
-        isOwner(nftAddress, tokenId, msg.sender)
-    {
+    ) external nonReentrant isOwner(nftAddress, tokenId, msg.sender) {
         // isListed(nftAddress, tokenId)
         //We should check the value of 'newPrice' and revert if it's below zero (like we also check in 'listItem()' function)
         if (newPrice <= 0) {
             revert PriceMustBeAboveZero();
         }
-        // s_listings[nftAddress][tokenId].price = newPrice;
+
+        bool isTokenFound = false;
+        address userAddr;
+        for (uint i = 0; i < s_listings.length; i++) {
+            TokenOwner memory crtToken = s_listings[i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                crtToken.price = newPrice;
+                isTokenFound = true;
+                userAddr = crtToken.seller;
+
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert NotListed(nftAddress, tokenId);
+        }
+
+        isTokenFound = false;
+        for (uint i = 0; i < s_usersTokens[userAddr].length; i++) {
+            TokenOwner memory crtToken = s_usersTokens[userAddr][i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                // Unlisting by setting the price back to `0`.
+                crtToken.price = newPrice;
+                isTokenFound = true;
+                break;
+            }
+        }
+
+        if (!isTokenFound) {
+            revert TokenNotFound();
+        }
+
         emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
     }
 
@@ -271,7 +408,7 @@ contract Marketplace is ReentrancyGuard {
     // }
 
     // that function returns the deployer(owner) of the contract:
-    function getOwner() public view returns(address){
+    function getOwner() public view returns (address) {
         return _owner;
     }
 
@@ -283,8 +420,22 @@ contract Marketplace is ReentrancyGuard {
         return s_listings;
     }
 
-    function getOwnerTokens(address ownerAddr) external view returns (TokenOwner[] memory) {
-        return s_usersTokens[ownerAddr];
+    function getOwnerToken(
+        address ownerAddr,
+        address nftAddress,
+        uint256 tokenId
+    ) external returns (TokenOwner memory) {
+        for (uint i = 0; i < s_usersTokens[ownerAddr].length; i++) {
+            TokenOwner memory crtToken = s_usersTokens[ownerAddr][i];
+            if (
+                crtToken.nftAddress == nftAddress && crtToken.tokenId == tokenId
+            ) {
+                emit TokenFound(crtToken);
+                return crtToken;
+            }
+        }
+
+        revert TokenNotFound();
     }
 
     // Inserts a new NFT by the NFT marketplace owner.
@@ -298,7 +449,15 @@ contract Marketplace is ReentrancyGuard {
         //nft = nftAddress.mintNft();
 
         ERC721 nft = ERC721(nftAddress);
-        s_usersTokens[msg.sender].push(TokenOwner(nftAddress, tokenId, nft.tokenURI(tokenId), 0));
+        s_usersTokens[msg.sender].push(
+            TokenOwner(
+                nftAddress,
+                tokenId,
+                nft.tokenURI(tokenId),
+                0,
+                msg.sender
+            )
+        );
 
         // nft.setApprovalForAll(msg.sender, true);
         // nft.approve(address(this), tokenId);

@@ -13,9 +13,9 @@ contract SquirrelNft is ERC721 {
         s_tokenCounter = 0;
     }
 
-    function mintNft() public { //we can add payable here
+    function mint() public { //we can add payable here
         _safeMint(msg.sender, s_tokenCounter);
-        _approve(address(bytes20(bytes("0x6184b26E6F816E68b4bdFffA27e0C5352e186B8B"))), s_tokenCounter);
+        // _approve(address(bytes20(bytes("0x6184b26E6F816E68b4bdFffA27e0C5352e186B8B"))), s_tokenCounter);
         // _setApprovalForAll(msg.sender, address(this), true);
         emit SquirellMinted(s_tokenCounter);
         s_tokenCounter = s_tokenCounter + 1;
